@@ -158,7 +158,7 @@ class Sda(object):
                                 decoder=True
                                 
         )
-        
+        #### add regularization
         cost = T.mean(T.sum((self.x - output_layer.output )**2 , axis=0))
 
         return cost
