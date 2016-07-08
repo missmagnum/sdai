@@ -55,13 +55,13 @@ def load_data(x):
 
 
 
-def test_SdA(finetune_lr=0.001, pretraining_epochs=15,
-             pretrain_lr=0.01, training_epochs=800,
+def test_SdA(nfeature,finetune_lr=0.001, pretraining_epochs=3,
+             pretrain_lr=0.01, training_epochs=100,
              dataset=None, batch_size=1):
 
     
     if not dataset:
-        dataset=syn_ph(nsamp=800,nfeat=50)
+        dataset=syn_ph(nsamp=10000,nfeat=nfeature)
 
     n_visible = dataset.shape[1]    
     train_set_x= load_data(dataset)
@@ -78,7 +78,7 @@ def test_SdA(finetune_lr=0.001, pretraining_epochs=15,
         numpy_rng = numpy_rng,
         theano_rng=theano_rng,
         n_inputs = n_visible,
-        hidden_layers_sizes=[60, 20, 2],
+        hidden_layers_sizes=[600, 200, 2],
         corruption_levels=[0.2, 0.1, 0.1]
     )
     
@@ -111,8 +111,8 @@ def test_SdA(finetune_lr=0.001, pretraining_epochs=15,
     ########################
     
    
-    valid_set_x = load_data(syn_ph(nsamp=100,nfeat=50))
-    test_set_x = load_data(syn_ph(nsamp=100,nfeat=50))
+    valid_set_x = load_data(syn_ph(nsamp=100,nfeat=nfeature))
+    test_set_x = load_data(syn_ph(nsamp=100,nfeat=nfeature))
         
     
     print('... getting the finetuning functions')
@@ -147,6 +147,7 @@ def test_SdA(finetune_lr=0.001, pretraining_epochs=15,
     while (epoch < training_epochs) and (not done_looping):
         epoch = epoch + 1
         for minibatch_index in range(n_train_batches):
+            #print('boz',minibatch_index,n_train_batches)
             minibatch_avg_cost = train_fn(minibatch_index)
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
@@ -203,12 +204,10 @@ def mse(x,z):
 
     
 if __name__ == '__main__':
-    sda,input=test_SdA()
+    nfeat=2000
+    sda,input=test_SdA(nfeat)
     output=sda.outout()
     t = np.linspace(0,2*np.pi,nfeat)
     error=mse(input,output)
-    
-
-
-    
+ 
 

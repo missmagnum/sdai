@@ -1,4 +1,5 @@
 import numpy
+import lasagne
 
 import theano
 import theano.tensor as T
@@ -77,8 +78,9 @@ class dA(object):
         #L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
         L = T.sum((self.x-z)**2 , axis=0)
         
-
-        cost = T.mean(L)
+        ## add l2 regularization
+        lambda2 = 1e-4
+        cost = T.mean(L)+ lambda2 * lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
         print('cost')
         gparams = T.grad(cost, self.params)
         updates = [

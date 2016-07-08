@@ -1,6 +1,8 @@
 import numpy as np
 import numpy
 import theano
+import lasagne
+
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
@@ -122,10 +124,14 @@ class Sda(object):
 
             
             self.decoder_layers.append(self.decoder_layer)
+            #self.decoder_params.append(self.decoder_layer.W)
             self.decoder_params.append(self.decoder_layer.b)
 
+            
+        self.network_layers=self.decoder_layers + self.encoder_layers
         self.params = self.encoder_params + self.decoder_params
 
+        
     def out(self):
         numpy_rng = numpy.random.RandomState(123)
         #output=T.dot(self.x, self.decoder_params[-2].get_value().T) + self.decoder_params[-1].get_value()
@@ -159,7 +165,11 @@ class Sda(object):
                                 
         )
         #### add regularization
-        cost = T.mean(T.sum((self.x - output_layer.output )**2 , axis=0))
+        cost = T.mean(T.sum((self.x - output_layer.output )**2 , axis=0))  
+
+        regularization_l2=lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
+        lambda2 = 1e-4
+        cost_regu=cost + lambda2 * regularization_l2
 
         return cost
 
@@ -207,6 +217,39 @@ class Sda(object):
         
 
     """
+
+        
+
+    def update_method(method = 'nes_mom', cost= None , params= None, learning_rate= 0.001):
+        
+        if method == None :
+            gparams = T.grad(finetune_cost, self.params)
+            print(gparams)
+        
+            updates = [
+                (param, param - gparam * learning_rate)
+                for param, gparam in zip(self.params, gparams)
+            ]
+
+        elif method == 'nes_mom' :
+            updates = lasagne.updates.nesterov_momentum(self.finetune_cost(),
+                                                        self.params,
+                                                        learning_rate = learning_rate,
+                                                        momentum = 0.9)
+        
+        elif method == 'adadelta' :
+            updates=lasagne.updates.adadelta(self.finetune_cost(),
+                                             self.params,
+                                             learning_rate = learning_rate,
+                                             rho = 0.95,
+                                             epsilon = 1e-6)
+        else:
+            raise ValueError(" check the given UPDATES ")
+
+        return updates
+
+
+    
     def build_finetune_functions(self, train_set_x, valid_set_x, test_set_x,
                                  batch_size, learning_rate):
         
@@ -218,18 +261,14 @@ class Sda(object):
 
         index = T.lscalar('index') 
 
+        
         finetune_cost=self.finetune_cost()
         print('finetune:  ',finetune_cost)
 
-        
-        
-        gparams = T.grad(finetune_cost, self.params)
-        print(gparams)
-        
-        updates = [
-            (param, param - gparam * learning_rate)
-            for param, gparam in zip(self.params, gparams)
-        ]
+
+        updates = self.update_method(method = 'nes_mom',
+                                     cost = self.finetune_cost(),
+                                     params = self.params )
 
         train_fn = theano.function(
             inputs=[index],
@@ -290,20 +329,3 @@ class Sda(object):
 
 
 
-
-    def get_prediction(self):
-        numpy_rng = numpy.random.RandomState(123)
-        #output=T.dot(self.x, self.decoder_params[-2].get_value().T) + self.decoder_params[-1].get_value()
-
-
-        output_layer=perceptron(rng=numpy_rng,
-                                input = self.decoder_layers[-2].output,
-                                n_in = self.hidden_layers_sizes[0],
-                                n_out = self.n_inputs,
-                                W=self.decoder_layer.W,
-                                b=self.decoder_layer.b,                               
-                                decoder=True
-                                
-        )
-        return output_layer.output
-        
