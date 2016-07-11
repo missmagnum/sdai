@@ -47,6 +47,7 @@ class Sda(object):
                 corruption=True
             else:
                 input_size = self. hidden_layers_sizes[i-1]
+                corruption=False
           
             if i == 0:
                 layer_input = self.x
@@ -175,6 +176,39 @@ class Sda(object):
 
  
     
+       
+
+    def update_method(self, method='nes_mom' , cost= None , params= None, learning_rate= 0.001):
+        
+        if method == None :
+            gparams = T.grad(finetune_cost, self.params)
+            print(gparams)
+        
+            updates = [
+                (param, param - gparam * learning_rate)
+                for param, gparam in zip(self.params, gparams)
+            ]
+
+        elif method == 'nes_mom' :
+            updates = lasagne.updates.nesterov_momentum(self.finetune_cost(),
+                                                        self.params,
+                                                        learning_rate = learning_rate,
+                                                        momentum = 0.9)
+        
+        elif method == 'adadelta' :
+            updates=lasagne.updates.adadelta(self.finetune_cost(),
+                                             self.params,
+                                             learning_rate = learning_rate,
+                                             rho = 0.95,
+                                             epsilon = 1e-6)
+        else:
+            raise ValueError(" check the given UPDATES ")
+
+        return updates
+
+
+
+
     def pretraining_functions(self, train_set_x, batch_size):
 
        
@@ -205,52 +239,11 @@ class Sda(object):
 
         return pretrain_fns
 
-    """
-    def fine_tune(self, train_x, valid_x, test_x, batch_size, learning_rate):
 
-
-        ##### regularization preformace parameters in network#####
-        n_hidden_nodes
-        learning_rate
-        momentum
-        weight decay parameters
+ 
         
-
-    """
-
-        
-
-    def update_method(method = 'nes_mom', cost= None , params= None, learning_rate= 0.001):
-        
-        if method == None :
-            gparams = T.grad(finetune_cost, self.params)
-            print(gparams)
-        
-            updates = [
-                (param, param - gparam * learning_rate)
-                for param, gparam in zip(self.params, gparams)
-            ]
-
-        elif method == 'nes_mom' :
-            updates = lasagne.updates.nesterov_momentum(self.finetune_cost(),
-                                                        self.params,
-                                                        learning_rate = learning_rate,
-                                                        momentum = 0.9)
-        
-        elif method == 'adadelta' :
-            updates=lasagne.updates.adadelta(self.finetune_cost(),
-                                             self.params,
-                                             learning_rate = learning_rate,
-                                             rho = 0.95,
-                                             epsilon = 1e-6)
-        else:
-            raise ValueError(" check the given UPDATES ")
-
-        return updates
-
-
     
-    def build_finetune_functions(self, train_set_x, valid_set_x, test_set_x,
+    def build_finetune_functions(self, method, train_set_x, valid_set_x, test_set_x,
                                  batch_size, learning_rate):
         
 
@@ -265,10 +258,10 @@ class Sda(object):
         finetune_cost=self.finetune_cost()
         print('finetune:  ',finetune_cost)
 
-
-        updates = self.update_method(method = 'nes_mom',
-                                     cost = self.finetune_cost(),
-                                     params = self.params )
+        
+        updates = self.update_method(method = method,
+                                     cost = finetune_cost,
+                                     params = self.params)
 
         train_fn = theano.function(
             inputs=[index],

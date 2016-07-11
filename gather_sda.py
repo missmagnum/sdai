@@ -1,0 +1,171 @@
+import numpy
+from pylab import *
+import timeit
+
+import theano
+import theano.tensor as T
+from theano.tensor.shared_randomstreams import RandomStreams
+
+from dA import dA
+from perceptron import perceptron
+from sda import Sda
+
+class gather_sda(object):
+
+    def __init__(self,
+                 dataset,
+                 method = 'nes_mom',
+                 pretraining_epochs = 3,
+                 pretrain_lr = 0.01,
+                 training_epochs = 100,
+                 finetune_lr = 0.001,
+                 batch_size = 1 ):
+        self.method = method
+        self.pretraining_epochs = pretraining_epochs
+        self.pretrain_lr = pretrain_lr
+        self.training_epochs = training_epochs
+        self.finetune_lr = finetune_lr     
+        self.batch_size = batch_size
+        
+        def load_data(X):
+            try:
+                matrix = X.as_matrix()
+            except AttributeError:
+                matrix = X
+                shared_x = theano.shared(numpy.asarray(matrix, dtype=theano.config.floatX), borrow=True)
+            return shared_x
+            
+        numpy.random.shuffle(dataset)
+        percent = int(dataset.shape[0] * 0.8)   ### %80 of dataset for training
+        train, self.test_set = dataset[:percent] ,load_data( dataset[percent:])
+        percent_valid = int(train.shape[0] * 0.8)
+        self.train_set, self.valid_set = load_data(train[:percent_valid]) , load_data(train[percent_valid:])
+
+        self.n_visible = dataset.shape[1]
+
+        self.n_train_batches = self.train_set.get_value(borrow=True).shape[0] // batch_size
+        
+        self.numpy_rng = numpy.random.RandomState(89677)
+        self.theano_rng = RandomStreams(self.numpy_rng.randint(2 ** 30))
+        print('input size', self.n_visible)
+
+    def pretraining(self,
+                    hidden_size = [600,200,2],
+                    corruption_da = [0.2, 0.1, 0.1]):
+
+        self.sda=Sda(
+        numpy_rng = self.numpy_rng,
+        theano_rng= self.theano_rng,
+        n_inputs = self.n_visible,
+        hidden_layers_sizes=hidden_size,
+        corruption_levels=corruption_da)
+
+                 
+   
+        print('... getting the pretraining functions')
+        pretraining_fns = self.sda.pretraining_functions(train_set_x = self.train_set,
+                                                    batch_size = self.batch_size)
+
+        print('... pre-training the model')
+        start_time = timeit.default_timer()
+        corruption_levels = corruption_da
+
+        for i in range(self.sda.n_layers):
+        
+            for epoch in range(self.pretraining_epochs):
+                # go through the training set
+                c = []
+                for batch_index in range(self.n_train_batches):
+                    c.append(pretraining_fns[i](index = batch_index,
+                                                corruption = corruption_levels[i],
+                                                lr = self.pretrain_lr))
+                print('Pre-training layer %i, epoch %d, cost %f' % (i, epoch, numpy.mean(c)))
+
+        end_time = timeit.default_timer()
+
+        
+    
+    def finetuning(self):
+
+        print('... getting the finetuning functions')
+        train_fn, validate_model, test_model =self.sda.build_finetune_functions(
+            method = self.method,
+            train_set_x = self.train_set,
+            valid_set_x = self.valid_set,
+            test_set_x = self.test_set,
+            batch_size = self.batch_size,
+            learning_rate = self.finetune_lr)
+        
+
+        patience = 10 * self.n_train_batches  # look as this many examples regardless
+        patience_increase = 2.  # wait this much longer when a new best is
+                            # found
+        improvement_threshold = 0.995  # a relative improvement of this much is
+                                   # considered significant
+        validation_frequency = min( self.n_train_batches, patience // 2)
+                                  # go through this many
+                                  # minibatche before checking the network
+                                  # on the validation set; in this case we
+                                  # check every epoch
+
+        best_validation_loss = numpy.inf
+        test_score = 0.
+        start_time = timeit.default_timer()
+
+        done_looping = False
+        epoch = 0
+        ### hold out cross validation
+        while (epoch < self.training_epochs) and (not done_looping):
+            epoch = epoch + 1
+            for minibatch_index in range(self.n_train_batches):
+                #print('boz',minibatch_index,n_train_batches)
+                minibatch_avg_cost = train_fn(minibatch_index)
+                iter = (epoch - 1) * self.n_train_batches + minibatch_index
+
+                if (iter + 1) % validation_frequency == 0:
+                    validation_losses = validate_model()
+                    this_validation_loss = numpy.mean(validation_losses)
+                    print('epoch %i, minibatch %i/%i, validation error %f %%' %
+                          (epoch, minibatch_index + 1, self.n_train_batches,
+                           this_validation_loss * 100.))
+
+                    # if we got the best validation score until now
+                    if this_validation_loss < best_validation_loss:
+
+                        #improve patience if loss improvement is good enough
+                        if (
+                            this_validation_loss < best_validation_loss *
+                            improvement_threshold
+                        ):
+                            patience = max(patience, iter * patience_increase)
+
+                        # save best validation score and iteration number
+                        best_validation_loss = this_validation_loss
+                        best_iter = iter
+
+                        # test it on the test set
+                        test_losses = test_model()
+                        test_score = numpy.mean(test_losses)
+                        print(('     epoch %i, minibatch %i/%i, test error of '
+                               'best model %f %%') %
+                              (epoch, minibatch_index + 1, self.n_train_batches,
+                               test_score * 100.))
+                        print('W',self.sda.decoder_layer.W.get_value()[-1,-1])
+
+                if patience <= iter:
+                    done_looping = True
+                    break
+
+        end_time = timeit.default_timer()
+        print(
+            (
+                'Optimization complete with best validation score of %f %%, '
+                'on iteration %i, '
+                'with test performance %f %%'
+            )
+            % (best_validation_loss * 100., best_iter + 1, test_score * 100.)
+        )
+        
+        return self.sda,self.train_set
+
+        

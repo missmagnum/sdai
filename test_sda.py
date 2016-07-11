@@ -34,11 +34,11 @@ def syn_ph(nsamp,nfeat,doplot=False):
 
 
     
-def load_data(x):
-    corruption_level = 0.1
-    X= numpy.random.binomial(n = 1 ,
-                             p = 1 - corruption_level,
-                             size=x.shape) * x
+def load_data(X):
+    #corruption_level = 0.1
+    #X= numpy.random.binomial(n = 1 ,
+    #p = 1 - corruption_level,
+    #size=x.shape) * x
     try:
         matrix = X.as_matrix()
     except AttributeError:
@@ -61,7 +61,7 @@ def test_SdA(nfeature,finetune_lr=0.001, pretraining_epochs=3,
 
     
     if not dataset:
-        dataset=syn_ph(nsamp=10000,nfeat=nfeature)
+        dataset=syn_ph(nsamp=1000,nfeat=nfeature)
 
     n_visible = dataset.shape[1]    
     train_set_x= load_data(dataset)
@@ -143,7 +143,7 @@ def test_SdA(nfeature,finetune_lr=0.001, pretraining_epochs=3,
 
     done_looping = False
     epoch = 0
-
+    ### hold out cross validation
     while (epoch < training_epochs) and (not done_looping):
         epoch = epoch + 1
         for minibatch_index in range(n_train_batches):
@@ -204,7 +204,7 @@ def mse(x,z):
 
     
 if __name__ == '__main__':
-    nfeat=2000
+    nfeat=200
     sda,input=test_SdA(nfeat)
     output=sda.outout()
     t = np.linspace(0,2*np.pi,nfeat)
