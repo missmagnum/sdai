@@ -14,12 +14,14 @@ class gather_sda(object):
 
     def __init__(self,
                  dataset,
+                 missing_mask = None,
                  method = 'nes_mom',
                  pretraining_epochs = 3,
                  pretrain_lr = 0.01,
                  training_epochs = 100,
                  finetune_lr = 0.001,
                  batch_size = 1 ):
+        
         self.method = method
         self.pretraining_epochs = pretraining_epochs
         self.pretrain_lr = pretrain_lr
@@ -35,20 +37,24 @@ class gather_sda(object):
                 shared_x = theano.shared(numpy.asarray(matrix, dtype=theano.config.floatX), borrow=True)
             return shared_x
             
-        numpy.random.shuffle(dataset)
+        #numpy.random.shuffle(dataset)   wont shuffle since need the exact place for missing_mask
         percent = int(dataset.shape[0] * 0.8)   ### %80 of dataset for training
         train, self.test_set = dataset[:percent] ,load_data( dataset[percent:])
+        rest_mask,self.test_mask = missing_mask[:percent],load_data(missing_mask[percent:])
         percent_valid = int(train.shape[0] * 0.8)
         self.train_set, self.valid_set = load_data(train[:percent_valid]) , load_data(train[percent_valid:])
+        self.train_mask = load_data(rest_mask[:percent_valid]) 
+        self.valid_mask = load_data(rest_mask[percent_valid:])
+        print(self.train_mask)
 
-        self.n_visible = dataset.shape[1]
 
-        self.n_train_batches = self.train_set.get_value(borrow=True).shape[0] // batch_size
         
+        self.n_visible = dataset.shape[1]
+        self.n_train_batches = self.train_set.get_value(borrow=True).shape[0] // batch_size        
         self.numpy_rng = numpy.random.RandomState(89677)
         self.theano_rng = RandomStreams(self.numpy_rng.randint(2 ** 30))
         print('input size', self.n_visible)
-
+        
     def pretraining(self,
                     hidden_size = [600,200,2],
                     corruption_da = [0.2, 0.1, 0.1]):
@@ -64,7 +70,7 @@ class gather_sda(object):
    
         print('... getting the pretraining functions')
         pretraining_fns = self.sda.pretraining_functions(train_set_x = self.train_set,
-                                                    batch_size = self.batch_size)
+                                                         batch_size = self.batch_size)
 
         print('... pre-training the model')
         start_time = timeit.default_timer()
@@ -93,6 +99,9 @@ class gather_sda(object):
             train_set_x = self.train_set,
             valid_set_x = self.valid_set,
             test_set_x = self.test_set,
+            train_mask = self.train_mask,
+            test_mask = self.test_mask,
+            valid_mask = self.valid_mask,
             batch_size = self.batch_size,
             learning_rate = self.finetune_lr)
         

@@ -8,10 +8,12 @@ from theano.tensor.shared_randomstreams import RandomStreams
 class dA(object):    
 
     def __init__( self, numpy_rng, theano_rng=None, input=None, n_visible=None, n_hidden=None, W=None, bhid=None,
-                  bvis=None):
+                  bvis=None ):
         
         self.n_visible = n_visible
         self.n_hidden = n_hidden
+       
+        
         if not theano_rng:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
         if not W:
@@ -54,7 +56,7 @@ class dA(object):
             self.x = T.dmatrix(name='input')
         else:
             self.x = input
-
+        
         self.params = [self.W, self.b, self.b_prime]
         self.main_params=[self.W,self.b]
         
@@ -73,9 +75,9 @@ class dA(object):
 
     def get_cost_updates(self, corruption_level, learning_rate):
         tilde_x = self.get_corrupted_input(self.x, corruption_level)
-        y = self.get_hidden_values(tilde_x)
+        y = self.get_hidden_values(tilde_x) 
         z = self.get_reconstructed_input(y)        
-        #L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
+        
         L = T.sum((self.x-z)**2 , axis=0)
         
         ## add l2 regularization

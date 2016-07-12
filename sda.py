@@ -16,8 +16,7 @@ class Sda(object):
 
     def __init__( self, numpy_rng=None, theano_rng=None,n_inputs=None,
                   hidden_layers_sizes=[500, 500],
-                  corruption_levels=[0.1, 0.1]
-    ):         
+                  corruption_levels=[0.1, 0.1]):         
 
         self.n_layers = len(hidden_layers_sizes)
         self.n_inputs=n_inputs
@@ -32,7 +31,7 @@ class Sda(object):
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
 
         self.x = T.matrix('x')       
-        self.x_perd=T.matrix('x_pred')
+        self.mask = T.matrix('mask')
 
 
         ### encoder_layers ####
@@ -78,6 +77,7 @@ class Sda(object):
                           n_hidden=hidden_layers_sizes[i],
                           W=self.encoder_layer.W,
                           bhid=self.encoder_layer.b)
+            
             self.dA_layers.append(dA_layer)
 
 
@@ -166,7 +166,9 @@ class Sda(object):
                                 
         )
         #### add regularization
-        cost = T.mean(T.sum((self.x - output_layer.output )**2 , axis=0))  
+        x = self.x * self.mask
+        z = output_layer.output* self.mask 
+        cost = T.mean(T.sum((x - z )**2 , axis=0))  
 
         regularization_l2=lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
         lambda2 = 1e-4
@@ -217,7 +219,7 @@ class Sda(object):
         learning_rate = T.scalar('lr')  
         batch_begin = index * batch_size
         batch_end = batch_begin + batch_size
-
+        
         pretrain_fns = []
         for dA in self.dA_layers:
             cost, updates = dA.get_cost_updates(corruption_level,
@@ -244,6 +246,7 @@ class Sda(object):
         
     
     def build_finetune_functions(self, method, train_set_x, valid_set_x, test_set_x,
+                                 train_mask, test_mask, valid_mask,
                                  batch_size, learning_rate):
         
 
@@ -269,6 +272,8 @@ class Sda(object):
             updates=updates,
             givens={
                 self.x: train_set_x[
+                    index * batch_size: (index + 1) * batch_size],
+                self.mask: train_mask[
                     index * batch_size: (index + 1) * batch_size
                 ]
             },
@@ -280,6 +285,8 @@ class Sda(object):
             outputs = finetune_cost,
             givens={
                 self.x: test_set_x[
+                    index * batch_size: (index + 1) * batch_size],
+                self.mask: test_mask[
                     index * batch_size: (index + 1) * batch_size
                 ]
             },
@@ -291,6 +298,8 @@ class Sda(object):
             outputs = finetune_cost,
             givens={
                 self.x: valid_set_x[
+                    index * batch_size: (index + 1) * batch_size],
+                self.mask: valid_mask[
                     index * batch_size: (index + 1) * batch_size
                 ]
             },
@@ -303,7 +312,7 @@ class Sda(object):
             givens={
                 self.x: train_set_x
             },
-            name='train'
+            name='output'
         )
             
             
