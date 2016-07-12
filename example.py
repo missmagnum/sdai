@@ -26,10 +26,13 @@ def syn_ph(nsamp,nfeat,doplot=False):
     return X_normalized
 
 
-dataset=syn_ph(50000,2000)
+dataset=syn_ph(10000,2000)
 sda=gather_sda(dataset)
 sda.pretraining()
 sad,data=sda.finetuning()
+
+
+
 
 """
 def mse(x,z):

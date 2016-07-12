@@ -178,7 +178,7 @@ class Sda(object):
     
        
 
-    def update_method(self, method='nes_mom' , cost= None , params= None, learning_rate= 0.001):
+    def update_method(self, method='nes_mom' , cost= None , params= None, learning_rate= 0.0001):
         
         if method == None :
             gparams = T.grad(finetune_cost, self.params)
