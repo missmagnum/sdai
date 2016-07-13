@@ -10,7 +10,7 @@ from dA import dA
 from perceptron import perceptron
 from sda import Sda
 
-class Gather_sda(object):
+class gather_sda(object):
 
     def __init__(self,
                  dataset,
@@ -198,6 +198,6 @@ class Gather_sda(object):
             % (best_validation_loss * 100., best_iter + 1, test_score * 100.)
         )
         
-        return self.sda,self.train_set
+        return self.sda
 
         

@@ -169,7 +169,7 @@ class Sda(object):
                                 decoder=True
                                 
         )
-        
+        ## cost over known data
         x = self.x * self.mask
         z = output_layer.output* self.mask 
         cost = T.mean(T.sum((x - z )**2 , axis=0))
@@ -251,7 +251,7 @@ class Sda(object):
  
         
     
-    def build_finetune_functions(self, method, train_set_x, valid_set_x, test_set_x,
+    def build_finetune_functions(self,dataset, method, train_set_x, valid_set_x, test_set_x,
                                  train_mask, test_mask, valid_mask,
                                  batch_size, learning_rate):
         
@@ -316,7 +316,7 @@ class Sda(object):
         self.outout=theano.function([],            
             outputs = out,
             givens={
-                self.x: train_set_x
+                self.x: dataset
             },
             name='output'
         )
