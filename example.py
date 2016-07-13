@@ -28,14 +28,14 @@ def syn_ph(nsamp,nfeat,doplot=False):
 
 
    
-dataset=syn_ph(1000,200)
+dataset=syn_ph(1000,2000)
 
 missing_percent = 0.6
 corruption=np.random.binomial(n=1, p = 1-missing_percent, size = dataset.shape)
 data_with_missing = dataset * corruption
 
-sda=gather_sda(data_with_missing, missing_mask = 1-corruption )
-sda.pretraining()
+sda=gather_sda(data_with_missing, missing_mask = 1-corruption , dA_initiall = False ,error_known = False )
+#sda.pretraining()
 sad,data=sda.finetuning()
 
 

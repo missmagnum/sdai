@@ -16,11 +16,14 @@ class Sda(object):
 
     def __init__( self, numpy_rng=None, theano_rng=None,n_inputs=None,
                   hidden_layers_sizes=[500, 500],
-                  corruption_levels=[0.1, 0.1]):         
+                  corruption_levels=[0.1, 0.1],
+                  dA_initiall=True,
+                  error_known=True):         
 
         self.n_layers = len(hidden_layers_sizes)
         self.n_inputs=n_inputs
         self.hidden_layers_sizes=hidden_layers_sizes
+        self.error_known = error_known
         
         assert self.n_layers > 2
 
@@ -70,15 +73,16 @@ class Sda(object):
             self.encoder_layers.append(self.encoder_layer)
             self.encoder_params.extend(self.encoder_layer.params)
 
-            dA_layer = dA(numpy_rng=numpy_rng,
-                          theano_rng=theano_rng,
-                          input=layer_input,
-                          n_visible=input_size,
-                          n_hidden=hidden_layers_sizes[i],
-                          W=self.encoder_layer.W,
-                          bhid=self.encoder_layer.b)
+            if dA_initiall:
+                dA_layer = dA(numpy_rng=numpy_rng,
+                              theano_rng=theano_rng,
+                              input=layer_input,
+                              n_visible=input_size,
+                              n_hidden=hidden_layers_sizes[i],
+                              W=self.encoder_layer.W,
+                              bhid=self.encoder_layer.b)
             
-            self.dA_layers.append(dA_layer)
+                self.dA_layers.append(dA_layer)
 
 
 
@@ -165,11 +169,13 @@ class Sda(object):
                                 decoder=True
                                 
         )
-        #### add regularization
+        
         x = self.x * self.mask
         z = output_layer.output* self.mask 
-        cost = T.mean(T.sum((x - z )**2 , axis=0))  
-
+        cost = T.mean(T.sum((x - z )**2 , axis=0))
+            
+        
+        ## add regularization
         regularization_l2=lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
         lambda2 = 1e-4
         cost_regu=cost + lambda2 * regularization_l2

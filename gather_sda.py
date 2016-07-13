@@ -20,7 +20,11 @@ class gather_sda(object):
                  pretrain_lr = 0.01,
                  training_epochs = 100,
                  finetune_lr = 0.001,
-                 batch_size = 1 ):
+                 batch_size = 1,
+                 hidden_size = [600,200,2],
+                 corruption_da = [0.2, 0.1, 0.1],
+                 dA_initiall = True,
+                 error_known = True ):
         
         self.method = method
         self.pretraining_epochs = pretraining_epochs
@@ -28,6 +32,10 @@ class gather_sda(object):
         self.training_epochs = training_epochs
         self.finetune_lr = finetune_lr     
         self.batch_size = batch_size
+        self.hidden_size = hidden_size
+        self.corruption_da = corruption_da
+        self.dA_initiall = dA_initiall
+        self.error_known = error_known
         
         def load_data(X):
             try:
@@ -46,7 +54,11 @@ class gather_sda(object):
         self.train_mask = load_data(rest_mask[:percent_valid]) 
         self.valid_mask = load_data(rest_mask[percent_valid:])
         print(self.train_mask)
-
+        
+        if not self.error_known:
+            self.train_mask = load_data(numpy.ones_like(rest_mask[:percent_valid]))
+            self.test_mask = load_data(numpy.ones_like(dataset[percent:]))
+            self.valid_mask = load_data(numpy.ones_like(rest_mask[percent_valid:]))
 
         
         self.n_visible = dataset.shape[1]
@@ -55,17 +67,16 @@ class gather_sda(object):
         self.theano_rng = RandomStreams(self.numpy_rng.randint(2 ** 30))
         print('input size', self.n_visible)
         
-    def pretraining(self,
-                    hidden_size = [600,200,2],
-                    corruption_da = [0.2, 0.1, 0.1]):
+    def pretraining(self):
 
         self.sda=Sda(
-        numpy_rng = self.numpy_rng,
-        theano_rng= self.theano_rng,
-        n_inputs = self.n_visible,
-        hidden_layers_sizes=hidden_size,
-        corruption_levels=corruption_da)
-
+            numpy_rng = self.numpy_rng,
+            theano_rng= self.theano_rng,
+            n_inputs = self.n_visible,
+            hidden_layers_sizes = self.hidden_size,
+            corruption_levels = self.corruption_da,
+            dA_initiall = self.dA_initiall,
+            error_known = self.error_known)
                  
    
         print('... getting the pretraining functions')
@@ -74,7 +85,7 @@ class gather_sda(object):
 
         print('... pre-training the model')
         start_time = timeit.default_timer()
-        corruption_levels = corruption_da
+        corruption_levels = self.corruption_da
 
         for i in range(self.sda.n_layers):
         
@@ -92,6 +103,16 @@ class gather_sda(object):
         
     
     def finetuning(self):
+
+        if not self.dA_initiall :
+            self.sda=Sda(
+            numpy_rng = self.numpy_rng,
+            theano_rng= self.theano_rng,
+            n_inputs = self.n_visible,
+            hidden_layers_sizes = self.hidden_size,
+            corruption_levels = self.corruption_da,
+            dA_initiall = self.dA_initiall,
+            error_known = self.error_known)
 
         print('... getting the finetuning functions')
         train_fn, validate_model, test_model =self.sda.build_finetune_functions(
