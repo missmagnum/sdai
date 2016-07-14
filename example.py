@@ -3,7 +3,7 @@ from pylab import *
 
 
 from gather_sda import Gather_sda
-from knnimpute import knn
+from knnimpute import Knn
 
 
 def syn_ph(nsamp,nfeat,doplot=False):
@@ -33,9 +33,13 @@ def error(x,z):
 
    
 dataset=syn_ph(10000,2000)
-#missing_percent=np.linspace(0.1,0.9,9)
-er=[]
-missing_percent=[0.2]
+missing_percent=np.linspace(0.1,0.9,9)
+
+all_error=[]
+known_error=[]
+unknown_error=[]
+
+#missing_percent=[0.2]
 for mis in missing_percent:
     corruption=np.random.binomial(n=1, p = 1-mis, size = dataset.shape)
 
@@ -46,12 +50,22 @@ for mis in missing_percent:
     gather.pretraining()
     sad=gather.finetuning()
     sda_result=gather.sda.outout()
-    ###ploting result
-    print(sda_result)
+    
+    ###saving result        
+    all_er=error(dataset,sda_result)
+    
     unknown_data=np.ma.masked_array(dataset,corruption)
     unknown_sda=np.ma.masked_array(sda_result,corruption)
-    mean_er=error(unknown_data,unknown_sda)
-    print(mean_er)
+    unknown_er=error(unknown_data,unknown_sda)
+    unknown_error.append()
+    known_data=np.ma.masked_array(dataset,1-corruption)
+    known_sda=np.ma.masked_array(sda_result,1-corruption)
+    known_er=error(known_data,known_sda)
+
+
+
+    
+    print(known_er)
     er.append(mean_er)
 
 np.savetxt('error_result.txt',(missing_percent,er))
