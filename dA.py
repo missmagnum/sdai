@@ -78,11 +78,11 @@ class dA(object):
         y = self.get_hidden_values(tilde_x) 
         z = self.get_reconstructed_input(y)        
         
-        L = T.sum((self.x-z)**2 , axis=0)
+        L = T.sum((self.x-z)**2 , axis=0)/self.x.shape[0]
         
         ## add l2 regularization
-        lambda2 = 1e-4
-        cost = T.mean(L)+ lambda2 * lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
+        lambda1 = 1e-4
+        cost = T.mean(L)+ lambda1 * lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l1)
         print('cost')
         gparams = T.grad(cost, self.params)
         updates = [

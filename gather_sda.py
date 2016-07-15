@@ -19,10 +19,10 @@ class Gather_sda(object):
                  pretraining_epochs = 3,
                  pretrain_lr = 0.01,
                  training_epochs = 100,
-                 finetune_lr = 0.001,
+                 finetune_lr = 0.0001,
                  batch_size = 1,
-                 hidden_size = [600,200,2],
-                 corruption_da = [0.2, 0.1, 0.1],
+                 hidden_size = [1010,200,2],
+                 corruption_da = [0.3, 0.2, 0.2],
                  dA_initiall = True,
                  error_known = True ):
         
@@ -54,7 +54,7 @@ class Gather_sda(object):
         self.train_set, self.valid_set = load_data(train[:percent_valid]) , load_data(train[percent_valid:])
         self.train_mask = load_data(rest_mask[:percent_valid]) 
         self.valid_mask = load_data(rest_mask[percent_valid:])
-        print(self.train_mask)
+        
         
         if not self.error_known:
             self.train_mask = load_data(numpy.ones_like(rest_mask[:percent_valid]))

@@ -172,13 +172,13 @@ class Sda(object):
         ## cost over known data
         x = self.x * self.mask
         z = output_layer.output* self.mask 
-        cost = T.mean(T.sum((x - z )**2 , axis=0))
+        cost = T.mean(T.sum((x - z )**2 , axis=0)/x.shape[0])
             
         
         ## add regularization
-        regularization_l2=lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
-        lambda2 = 1e-4
-        cost_regu=cost + lambda2 * regularization_l2
+        regularization_l1=lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l1)
+        lambda1 = 1e-4
+        cost_regu=cost + lambda1 * regularization_l1
 
         return cost
 
@@ -190,7 +190,7 @@ class Sda(object):
         
         if method == None :
             gparams = T.grad(finetune_cost, self.params)
-            print(gparams)
+            
         
             updates = [
                 (param, param - gparam * learning_rate)
@@ -265,8 +265,6 @@ class Sda(object):
 
         
         finetune_cost=self.finetune_cost()
-        print('finetune:  ',finetune_cost)
-
         
         updates = self.update_method(method = method,
                                      cost = finetune_cost,
