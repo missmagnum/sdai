@@ -44,49 +44,69 @@ def syn_multid(nsamp,nfeat):
         row+= np.random.normal(0,0.5,nfeat)    
     return X
 
-
+def syn_mul(nsamp, nfeat, nvariety=3):
+    t = np.random.randn(nsamp, nvariety)
+    a = np.random.randn(nvariety,nfeat)
+    v=np.dot(t,a)
+    funcs=[lambda x: x**2, lambda x : log(x), lambda x: x**3, lambda x: x,lambda x: sin(x),lambda x: tan(x)]
+    X = np.zeros((nsamp,nfeat))    
+    for i in range(nfeat):
+        shuffle(funcs)
+        X[:,i] = funcs[0](v[:,i])     
+    for row in X:
+        row+= np.random.normal(0,0.5,nfeat)    
+    return X
 
 
 def error(x,z):
     var=np.var(x,axis=0)
     nfeat=x.shape[1]
     nsamples=x.shape[0]
-    return np.mean(np.sum((x - z )**2 , axis=0)/nsamples)  #(var*nfeat)
+    return np.mean(np.sum((x - z )**2 , axis=1))  #(var*nfeat)
 
-   
-dataset=syn_multid(10000,1000)
-missing_percent=np.linspace(0.1,0.9,9)
+########################################################################
+########################################################################
+########################################################################
 
-all_error=[]
-known_error=[]
-unknown_error=[]
 
-#missing_percent=[0.2]
+
+    
+data_source = 'syn_ph'
+dataset=syn_ph(1800,200)
+missing_percent=np.linspace(0.1,0.8,8)
+
+
+bjorn_error=[]
+mean_error=[]
+sd_error=[]
+missing_percent=[0.1]
 for mis in missing_percent:
     print('missing percentage: ',mis)
+    #for i in range(10):
     corruption=np.random.binomial(n=1, p = 1-mis, size = dataset.shape)
 
 
     #### SDA
     data_with_missing = dataset * corruption
-    gather=Gather_sda(data_with_missing, missing_mask = 1-corruption , method = 'adadelta',dA_initiall = True ,error_known = True )
-    gather.pretraining()
-    sad=gather.finetuning()
-    sda_result=gather.sda.outout()
+    gather=Gather_sda(data_with_missing, available_mask = corruption , method = 'nes_mom',dA_initiall = True ,error_known = True )
     
+    gather.finetuning()
+    #print(train.shape)
+    
+        
     ###saving result        
-    all_error.append(error(dataset,sda_result))    
-    unknown_data=np.ma.masked_array(dataset,corruption)
-    unknown_sda=np.ma.masked_array(sda_result,corruption)
-    unknown_error.append(error(unknown_data,unknown_sda))
-    known_data=np.ma.masked_array(dataset,1-corruption)
-    known_sda=np.ma.masked_array(sda_result,1-corruption)
-    known_error.append(error(known_data,known_sda))
 
-name=str(datetime.datetime.now())
-np.savetxt(name,(missing_percent,all_error,known_error,unknown_error))
+    
+    bjorn_error.append(sum((1-corruption)*((dataset-gather.gather_out())**2), axis=1).mean())
+    mean_error.append(sum((1-corruption)*((dataset-dataset.mean(axis=0))**2), axis=1).mean())
+    
+#print('gather_out',gather.gather_out()[-1],'outout',sda_result[-1])
+#name=data_source+str(datetime.date.today())
+#np.savetxt(name,(missing_percent,all_error,known_error,unknown_error))
+#missing_percent,all_error,known_error,unknown_error =np.loadtxt('name')
 
-
+print(bjorn_error)
+print(mean_error)
 
     
 

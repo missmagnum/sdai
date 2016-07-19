@@ -47,6 +47,7 @@ class Sda(object):
             if i == 0:
                 input_size = self.n_inputs
                 corruption=True
+                
             else:
                 input_size = self. hidden_layers_sizes[i-1]
                 corruption=False
@@ -56,10 +57,7 @@ class Sda(object):
             else:
                 layer_input=self.encoder_layers[-1].output
                 
-            if i== self.n_layers - 1 :
-                act_func=None
-            else:
-                act_func=T.nnet.sigmoid
+            act_func=T.tanh
                 
             self.encoder_layer=perceptron(rng = numpy_rng,
                                           theano_rng=theano_rng,
@@ -68,10 +66,6 @@ class Sda(object):
                                           n_out = self.hidden_layers_sizes[i],
                                           activation = act_func,
                                           first_layer_corrup=corruption)
-
-            
-            self.encoder_layers.append(self.encoder_layer)
-            self.encoder_params.extend(self.encoder_layer.params)
 
             if dA_initiall:
                 dA_layer = dA(numpy_rng=numpy_rng,
@@ -83,7 +77,11 @@ class Sda(object):
                               bhid=self.encoder_layer.b)
             
                 self.dA_layers.append(dA_layer)
+            
+            self.encoder_layers.append(self.encoder_layer)
+            self.encoder_params.extend(self.encoder_layer.params)
 
+ 
 
 
         ### decoder_layers ####
@@ -110,12 +108,11 @@ class Sda(object):
             else:
                 n_out=decode_hidden_sizes[i+1]
 
-            if i== 0:
-                act_func=None
-            elif i==len(decode_hidden_sizes)-1:
-                act_func = T.tanh
+
+            if i==len(decode_hidden_sizes)-1:
+                act_func = None
             else:
-                act_func=T.nnet.relu
+                act_func=T.tanh
             
             self.decoder_layer=perceptron(rng=numpy_rng,
                                         input=layer_input,
@@ -129,86 +126,94 @@ class Sda(object):
 
             
             self.decoder_layers.append(self.decoder_layer)
-            #self.decoder_params.append(self.decoder_layer.W)
-            self.decoder_params.append(self.decoder_layer.b)
-
             
-        self.network_layers=self.decoder_layers + self.encoder_layers
+            self.decoder_params.append(self.decoder_layer.b)
+            
+            
+        self.network_layers=  self.encoder_layers + self.decoder_layers
         self.params = self.encoder_params + self.decoder_params
-
+        print(self.params)
         
-    def out(self):
-        numpy_rng = numpy.random.RandomState(123)
-        #output=T.dot(self.x, self.decoder_params[-2].get_value().T) + self.decoder_params[-1].get_value()
 
 
-        output_layer=perceptron(rng=numpy_rng,
-                                input = self.decoder_layers[-2].output,
-                                n_in = self.hidden_layers_sizes[0],
-                                n_out = self.n_inputs,
-                                W=self.decoder_layer.W,
-                                b=self.decoder_layer.b,                               
-                                decoder=True
+    def finetune_cost(self):     
                                 
-        )
-        return self.decoder_layer.output 
-  
-       
-
-    def finetune_cost(self):
-        numpy_rng = numpy.random.RandomState(123)
-        #output=T.dot(self.x, self.decoder_params[-2].get_value().T) + self.decoder_params[-1].get_value()
-
-
-        output_layer=perceptron(rng=numpy_rng,
-                                input = self.decoder_layers[-2].output,
-                                n_in = self.hidden_layers_sizes[0],
-                                n_out = self.n_inputs,
-                                W=self.decoder_layer.W,
-                                b=self.decoder_layer.b,                               
-                                decoder=True
-                                
-        )
+    
         ## cost over known data
         x = self.x * self.mask
-        z = output_layer.output* self.mask 
-        cost = T.mean(T.sum((x - z )**2 , axis=0)/x.shape[0])
+        z = self.decoder_layer.output* self.mask 
+        cost = T.mean(T.sum((x - z )**2 , axis=1))
             
         
         ## add regularization
-        regularization_l1=lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l1)
+        regularizationl2=lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
+        regu_l2 = T.sum([ T.sum(layer.W**2) for layer in self.network_layers] )
+        regu_l1 = T.sum([ T.sum(abs(layer.W)) for layer in self.network_layers] )
         lambda1 = 1e-4
-        cost_regu=cost + lambda1 * regularization_l1
+        cost_regu=cost + lambda1 * regu_l2
 
-        return cost
+        return cost_regu ,cost
 
  
     
        
 
-    def update_method(self, method='nes_mom' , cost= None , params= None, learning_rate= 0.0001):
+    def update_method(self, method=None , cost= None , params= None, learning_rate= None):
         
         if method == None :
-            gparams = T.grad(finetune_cost, self.params)
+            gparams = T.grad(cost, params)
             
         
             updates = [
                 (param, param - gparam * learning_rate)
-                for param, gparam in zip(self.params, gparams)
+                for param, gparam in zip(params, gparams)
             ]
 
+            
         elif method == 'nes_mom' :
-            updates = lasagne.updates.nesterov_momentum(self.finetune_cost(),
-                                                        self.params,
-                                                        learning_rate = learning_rate,
-                                                        momentum = 0.9)
-        
+            
+            
+            updates = lasagne.updates.nesterov_momentum(cost,
+                                          params,
+                                                        learning_rate = learning_rate)
+
+            
+            
         elif method == 'adadelta' :
-            updates=lasagne.updates.adadelta(self.finetune_cost(),
-                                             self.params,
+            updates=lasagne.updates.adadelta(cost,
+                                             params,
                                              learning_rate = learning_rate,
                                              rho = 0.95,
                                              epsilon = 1e-6)
+        elif method=='adam':
+            updates=lasagne.updates.adam(cost,
+                                         params,
+                                         learning_rate=learning_rate,
+                                         beta1=0.9,
+                                         beta2=0.999,
+                                         epsilon=1e-08)
+
+        elif method== 'rmsprop':
+            """
+            learning_rate=learning_rate
+            rho=0.9
+            epsilon=1e-6
+            one = T.constant(1)
+            
+            gparams = T.grad(cost, params)
+            
+            for param, grad in zip(params, gparams):
+                value = param.get_value(borrow=True)
+                accu = theano.shared(np.zeros(value.shape, dtype=value.dtype),
+                                     broadcastable=param.broadcastable)
+                accu_new = rho * accu + (one - rho) * grad ** 2
+                updates=[(accu , accu_new) ,(param , param - (learning_rate * grad /
+                                          T.sqrt(accu_new + epsilon)))]
+
+            """
+            updates=lasagne.updates.rmsprop(cost, params, learning_rate=learning_rate, rho=0.9, epsilon=1e-06)
+
+            
         else:
             raise ValueError(" check the given UPDATES ")
 
@@ -264,11 +269,12 @@ class Sda(object):
         index = T.lscalar('index') 
 
         
-        finetune_cost=self.finetune_cost()
+        finetune_cost, validation_test=self.finetune_cost()
         
         updates = self.update_method(method = method,
                                      cost = finetune_cost,
-                                     params = self.params)
+                                     params = self.params,
+                                     learning_rate= learning_rate)
 
         train_fn = theano.function(
             inputs=[index],
@@ -286,7 +292,7 @@ class Sda(object):
 
         test_score_i = theano.function(
             [index],
-            outputs = finetune_cost,
+            outputs = validation_test,
             givens={
                 self.x: test_set_x[
                     index * batch_size: (index + 1) * batch_size],
@@ -299,7 +305,7 @@ class Sda(object):
 
         valid_score_i = theano.function(
             [index],
-            outputs = finetune_cost,
+            outputs = validation_test,
             givens={
                 self.x: valid_set_x[
                     index * batch_size: (index + 1) * batch_size],
@@ -310,17 +316,10 @@ class Sda(object):
             name='valid'
         )
 
-        out=self.out()
-        self.outout=theano.function([],            
-            outputs = out,
-            givens={
-                self.x: dataset
-            },
-            name='output'
-        )
+        
+ 
             
-            
-
+        #self.output=lasagne.layers.get_output(self.network_layers,inputs=dataset)
 
         
         def valid_score():
@@ -331,7 +330,6 @@ class Sda(object):
             return [test_score_i(i) for i in range(n_test_batches)]
 
         return train_fn, valid_score, test_score
-
 
 
 

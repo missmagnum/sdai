@@ -68,27 +68,34 @@ class dA(object):
                                         dtype=theano.config.floatX) * input
 
     def get_hidden_values(self, input):
-        return T.nnet.sigmoid(T.dot(input, self.W) + self.b)
+        return T.tanh(T.dot(input, self.W) + self.b)
 
     def get_reconstructed_input(self, hidden):
-        return T.nnet.sigmoid(T.dot(hidden, self.W_prime) + self.b_prime)
+        return T.tanh(T.dot(hidden, self.W_prime) + self.b_prime)
 
     def get_cost_updates(self, corruption_level, learning_rate):
         tilde_x = self.get_corrupted_input(self.x, corruption_level)
         y = self.get_hidden_values(tilde_x) 
         z = self.get_reconstructed_input(y)        
         
-        L = T.sum((self.x-z)**2 , axis=0)/self.x.shape[0]
+        L = T.sum((self.x-z)**2 , axis=1)
         
         ## add l2 regularization
         lambda1 = 1e-4
-        cost = T.mean(L)+ lambda1 * lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l1)
-        print('cost')
+        cost = T.mean(L)+ lambda1 * lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
+        
+        """
         gparams = T.grad(cost, self.params)
         updates = [
             (param, param - learning_rate * gparam)
             for param, gparam in zip(self.params, gparams)
         ]
+        """
+        updates = lasagne.updates.nesterov_momentum(cost,
+                                                        self.params,
+                                                        learning_rate = learning_rate,
+                                                        momentum = 0.9)
+                  
 
         return (cost, updates)
 

@@ -14,15 +14,15 @@ class Gather_sda(object):
 
     def __init__(self,
                  dataset,
-                 missing_mask = None,
-                 method = 'nes_mom',
-                 pretraining_epochs = 3,
-                 pretrain_lr = 0.01,
+                 available_mask = None,
+                 method = None,
+                 pretraining_epochs = 100,
+                 pretrain_lr = 0.05,
                  training_epochs = 100,
-                 finetune_lr = 0.0001,
-                 batch_size = 1,
-                 hidden_size = [1010,200,2],
-                 corruption_da = [0.3, 0.2, 0.2],
+                 finetune_lr = 0.0005,
+                 batch_size = 100,
+                 hidden_size = [100,20,2],
+                 corruption_da = [0.05, 0.05, 0.05],
                  dA_initiall = True,
                  error_known = True ):
         
@@ -36,6 +36,7 @@ class Gather_sda(object):
         self.corruption_da = corruption_da
         self.dA_initiall = dA_initiall
         self.error_known = error_known
+        self.gather_out = 0
         
         def load_data(X):
             try:
@@ -45,11 +46,11 @@ class Gather_sda(object):
                 shared_x = theano.shared(numpy.asarray(matrix, dtype=theano.config.floatX), borrow=True)
             return shared_x
             
-        #numpy.random.shuffle(dataset)   wont shuffle since need the exact place for missing_mask
+        #numpy.random.shuffle(dataset)   wont shuffle since need the exact place for available_mask
         self.dataset = load_data(dataset)
         percent = int(dataset.shape[0] * 0.8)   ### %80 of dataset for training
         train, self.test_set = dataset[:percent] ,load_data( dataset[percent:])
-        rest_mask,self.test_mask = missing_mask[:percent],load_data(missing_mask[percent:])
+        rest_mask,self.test_mask = available_mask[:percent],load_data(available_mask[percent:])
         percent_valid = int(train.shape[0] * 0.8)
         self.train_set, self.valid_set = load_data(train[:percent_valid]) , load_data(train[percent_valid:])
         self.train_mask = load_data(rest_mask[:percent_valid]) 
@@ -80,7 +81,6 @@ class Gather_sda(object):
             error_known = self.error_known)
                  
    
-        print('... getting the pretraining functions')
         pretraining_fns = self.sda.pretraining_functions(train_set_x = self.train_set,
                                                          batch_size = self.batch_size)
 
@@ -105,7 +105,9 @@ class Gather_sda(object):
     
     def finetuning(self):
 
-        if not self.dA_initiall :
+        if self.dA_initiall:
+            self.pretraining()
+        else:
             self.sda=Sda(
             numpy_rng = self.numpy_rng,
             theano_rng= self.theano_rng,
@@ -114,6 +116,15 @@ class Gather_sda(object):
             corruption_levels = self.corruption_da,
             dA_initiall = self.dA_initiall,
             error_known = self.error_known)
+
+        self.gather_out=theano.function(
+            [],
+            outputs=self.sda.decoder_layer.output,
+            givens={
+                self.sda.x : self.dataset}
+        )
+
+        
 
         print('... getting the finetuning functions')
         train_fn, validate_model, test_model =self.sda.build_finetune_functions(
@@ -127,7 +138,8 @@ class Gather_sda(object):
             valid_mask = self.valid_mask,
             batch_size = self.batch_size,
             learning_rate = self.finetune_lr)
-        
+
+      
 
         patience = 10 * self.n_train_batches  # look as this many examples regardless
         patience_increase = 2.  # wait this much longer when a new best is
@@ -150,16 +162,18 @@ class Gather_sda(object):
         while (epoch < self.training_epochs) and (not done_looping):
             epoch = epoch + 1
             for minibatch_index in range(self.n_train_batches):
-                #print('boz',minibatch_index,n_train_batches)
+                
+                
                 minibatch_avg_cost = train_fn(minibatch_index)
+                
                 iter = (epoch - 1) * self.n_train_batches + minibatch_index
 
                 if (iter + 1) % validation_frequency == 0:
                     validation_losses = validate_model()
                     this_validation_loss = numpy.mean(validation_losses)
-                    print('epoch %i, minibatch %i/%i, validation error %f %%' %
+                    print('epoch %i, minibatch %i/%i, validation error %f ' %
                           (epoch, minibatch_index + 1, self.n_train_batches,
-                           this_validation_loss * 100.))
+                           this_validation_loss))
 
                     # if we got the best validation score until now
                     if this_validation_loss < best_validation_loss:
@@ -179,7 +193,7 @@ class Gather_sda(object):
                         test_losses = test_model()
                         test_score = numpy.mean(test_losses)
                         print(('     epoch %i, minibatch %i/%i, test error of '
-                               'best model %f %%') %
+                               'best model %f ') %
                               (epoch, minibatch_index + 1, self.n_train_batches,
                                test_score * 100.))
                         print('W',self.sda.decoder_layer.W.get_value()[-1,-1])
@@ -187,17 +201,17 @@ class Gather_sda(object):
                 if patience <= iter:
                     done_looping = True
                     break
-
+      
         end_time = timeit.default_timer()
         print(
             (
-                'Optimization complete with best validation score of %f %%, '
+                'Optimization complete with best validation score of %f , '
                 'on iteration %i, '
-                'with test performance %f %%'
+                'with test performance %f '
             )
-            % (best_validation_loss * 100., best_iter + 1, test_score * 100.)
+            % (best_validation_loss , best_iter + 1, test_score )
         )
         
-        return self.sda,self.train_set
+        return self.sda
 
         

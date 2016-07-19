@@ -9,7 +9,7 @@ class perceptron(object):
     def __init__(self, rng=None,theano_rng=None, input=None, n_in=None , n_out=None, W=None, b=None,
                  activation=None, decoder=False, first_layer_corrup=False):
         self.input = input
-
+        
 
         if not rng:
             rng = numpy.random.RandomState(123)
@@ -43,7 +43,7 @@ class perceptron(object):
 
 
         if first_layer_corrup:
-            corruption_level = 0.1            
+            corruption_level = 0.1        
             input = theano_rng.binomial(size=input.shape, n=1,
                                         p=1 - corruption_level,
                                         dtype=theano.config.floatX) * input
