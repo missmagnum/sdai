@@ -8,7 +8,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 
 from dA import dA
 from perceptron import perceptron
-
+from update import Update
 
 
 class Sda(object):
@@ -18,12 +18,14 @@ class Sda(object):
                   hidden_layers_sizes=[500, 500],
                   corruption_levels=[0.1, 0.1],
                   dA_initiall=True,
-                  error_known=True):         
+                  error_known=True,
+                  method=None):         
 
         self.n_layers = len(hidden_layers_sizes)
         self.n_inputs=n_inputs
         self.hidden_layers_sizes=hidden_layers_sizes
         self.error_known = error_known
+        self.method=method
         
         assert self.n_layers > 2
 
@@ -74,7 +76,8 @@ class Sda(object):
                               n_visible=input_size,
                               n_hidden=hidden_layers_sizes[i],
                               W=self.encoder_layer.W,
-                              bhid=self.encoder_layer.b)
+                              bhid=self.encoder_layer.b,
+                              method = self.method)
             
                 self.dA_layers.append(dA_layer)
             
@@ -150,77 +153,12 @@ class Sda(object):
         regu_l2 = T.sum([ T.sum(layer.W**2) for layer in self.network_layers] )
         regu_l1 = T.sum([ T.sum(abs(layer.W)) for layer in self.network_layers] )
         lambda1 = 1e-4
+
         cost_regu=cost + lambda1 * regu_l2
 
         return cost_regu ,cost
 
  
-    
-       
-
-    def update_method(self, method=None , cost= None , params= None, learning_rate= None):
-        
-        if method == None :
-            gparams = T.grad(cost, params)
-            
-        
-            updates = [
-                (param, param - gparam * learning_rate)
-                for param, gparam in zip(params, gparams)
-            ]
-
-            
-        elif method == 'nes_mom' :
-            
-            
-            updates = lasagne.updates.nesterov_momentum(cost,
-                                          params,
-                                                        learning_rate = learning_rate)
-
-            
-            
-        elif method == 'adadelta' :
-            updates=lasagne.updates.adadelta(cost,
-                                             params,
-                                             learning_rate = learning_rate,
-                                             rho = 0.95,
-                                             epsilon = 1e-6)
-        elif method=='adam':
-            updates=lasagne.updates.adam(cost,
-                                         params,
-                                         learning_rate=learning_rate,
-                                         beta1=0.9,
-                                         beta2=0.999,
-                                         epsilon=1e-08)
-
-        elif method== 'rmsprop':
-            """
-            learning_rate=learning_rate
-            rho=0.9
-            epsilon=1e-6
-            one = T.constant(1)
-            
-            gparams = T.grad(cost, params)
-            
-            for param, grad in zip(params, gparams):
-                value = param.get_value(borrow=True)
-                accu = theano.shared(np.zeros(value.shape, dtype=value.dtype),
-                                     broadcastable=param.broadcastable)
-                accu_new = rho * accu + (one - rho) * grad ** 2
-                updates=[(accu , accu_new) ,(param , param - (learning_rate * grad /
-                                          T.sqrt(accu_new + epsilon)))]
-
-            """
-            updates=lasagne.updates.rmsprop(cost, params, learning_rate=learning_rate, rho=0.9, epsilon=1e-06)
-
-            
-        else:
-            raise ValueError(" check the given UPDATES ")
-
-        return updates
-
-
-
 
     def pretraining_functions(self, train_set_x, batch_size):
 
@@ -271,10 +209,10 @@ class Sda(object):
         
         finetune_cost, validation_test=self.finetune_cost()
         
-        updates = self.update_method(method = method,
-                                     cost = finetune_cost,
-                                     params = self.params,
-                                     learning_rate= learning_rate)
+        updates = Update(method = method,
+                         cost = finetune_cost,
+                         params = self.params,
+                         learning_rate= learning_rate)
 
         train_fn = theano.function(
             inputs=[index],

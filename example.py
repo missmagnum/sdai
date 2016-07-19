@@ -73,7 +73,7 @@ def error(x,z):
     
 data_source = 'syn_ph'
 dataset=syn_ph(1800,200)
-missing_percent=np.linspace(0.1,0.8,8)
+missing_percent=np.linspace(0.1,0.9,9)
 
 
 bjorn_error=[]
@@ -88,7 +88,7 @@ for mis in missing_percent:
 
     #### SDA
     data_with_missing = dataset * corruption
-    gather=Gather_sda(data_with_missing, available_mask = corruption , method = 'nes_mom',dA_initiall = True ,error_known = True )
+    gather=Gather_sda(data_with_missing, available_mask = corruption , method = 'nes_mom',dA_initiall = False ,error_known = True )
     
     gather.finetuning()
     #print(train.shape)

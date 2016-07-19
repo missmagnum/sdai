@@ -5,14 +5,17 @@ import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
+from update import Update
+
+
 class dA(object):    
 
     def __init__( self, numpy_rng, theano_rng=None, input=None, n_visible=None, n_hidden=None, W=None, bhid=None,
-                  bvis=None ):
+                  bvis=None , method=None):
         
         self.n_visible = n_visible
         self.n_hidden = n_hidden
-       
+        self.method=method
         
         if not theano_rng:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
@@ -84,18 +87,10 @@ class dA(object):
         lambda1 = 1e-4
         cost = T.mean(L)+ lambda1 * lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
         
-        """
-        gparams = T.grad(cost, self.params)
-        updates = [
-            (param, param - learning_rate * gparam)
-            for param, gparam in zip(self.params, gparams)
-        ]
-        """
-        updates = lasagne.updates.nesterov_momentum(cost,
-                                                        self.params,
-                                                        learning_rate = learning_rate,
-                                                        momentum = 0.9)
-                  
+        updates = Update(method = self.method,
+                         cost = cost,
+                         params = self.params,
+                         learning_rate= learning_rate)
 
         return (cost, updates)
 

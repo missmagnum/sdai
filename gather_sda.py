@@ -17,12 +17,12 @@ class Gather_sda(object):
                  available_mask = None,
                  method = None,
                  pretraining_epochs = 100,
-                 pretrain_lr = 0.05,
+                 pretrain_lr = 0.005,
                  training_epochs = 100,
-                 finetune_lr = 0.0005,
+                 finetune_lr = 0.005,
                  batch_size = 100,
                  hidden_size = [100,20,2],
-                 corruption_da = [0.05, 0.05, 0.05],
+                 corruption_da = [0.1, 0.1, 0.1],
                  dA_initiall = True,
                  error_known = True ):
         
@@ -115,7 +115,8 @@ class Gather_sda(object):
             hidden_layers_sizes = self.hidden_size,
             corruption_levels = self.corruption_da,
             dA_initiall = self.dA_initiall,
-            error_known = self.error_known)
+            error_known = self.error_known,
+            method=self.method)
 
         self.gather_out=theano.function(
             [],
