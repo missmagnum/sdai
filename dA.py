@@ -11,11 +11,12 @@ from update import Update
 class dA(object):    
 
     def __init__( self, numpy_rng, theano_rng=None, input=None, n_visible=None, n_hidden=None, W=None, bhid=None,
-                  bvis=None , method=None):
+                  bvis=None , method=None , problem = None):
         
         self.n_visible = n_visible
         self.n_hidden = n_hidden
         self.method=method
+
         
         if not theano_rng:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
@@ -55,6 +56,7 @@ class dA(object):
         self.b_prime = bvis
         self.W_prime = self.W.T
         self.theano_rng = theano_rng
+        self.problem = problem
         if input is None:
             self.x = T.dmatrix(name='input')
         else:
@@ -80,9 +82,10 @@ class dA(object):
         tilde_x = self.get_corrupted_input(self.x, corruption_level)
         y = self.get_hidden_values(tilde_x) 
         z = self.get_reconstructed_input(y)        
-        
-        L = T.sum((self.x-z)**2 , axis=1)
-        #L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
+        if self.problem == 'regression':
+            L = T.sum((self.x-z)**2 , axis=1)
+        else:
+            L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
         ## add l2 regularization
         lambda1 = 1e-4
         cost = T.mean(L)+ lambda1 * lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)

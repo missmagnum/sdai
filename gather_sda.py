@@ -18,9 +18,10 @@ class Gather_sda(object):
     def __init__(self,
                  dataset,
                  portion_data,
+                 problem = 'regression' ,
                  available_mask = None,
                  method = None,
-                 pretraining_epochs = 10,
+                 pretraining_epochs = 100,
                  pretrain_lr = 0.005,
                  training_epochs = 100,
                  finetune_lr = 0.0005,
@@ -29,7 +30,7 @@ class Gather_sda(object):
                  corruption_da = [0.1, 0.1, 0.1],
                  dA_initiall = True,
                  error_known = True ):
-        
+        self.problem = problem
         self.method = method
         self.pretraining_epochs = pretraining_epochs
         self.pretrain_lr = pretrain_lr
@@ -40,8 +41,7 @@ class Gather_sda(object):
         self.corruption_da = corruption_da
         self.dA_initiall = dA_initiall
         self.error_known = error_known
-        self.gather_out = 0
-        
+       
         def load_data(X):
             try:
                 matrix = X.as_matrix()
@@ -55,16 +55,11 @@ class Gather_sda(object):
         if error_known:
             self.train_mask,self.valid_mask,self.test_mask = [load_data(i) for i in available_mask]
 
+        else:
+            self.train_mask,self.valid_mask,self.test_mask = [load_data(numpy.ones_like(i)) for i in available_mask]
+
+       
         self.dataset=load_data(dataset)
-
-
-        if not self.error_known:
-            self.train_mask = load_data(numpy.ones_like(rest_mask[:percent_valid]))
-            self.test_mask = load_data(numpy.ones_like(dataset[percent:]))
-            self.valid_mask = load_data(numpy.ones_like(rest_mask[percent_valid:]))
-
-         
-        
         self.n_visible = dataset.shape[1]
         self.n_train_batches = self.train_set.get_value(borrow=True).shape[0] // batch_size        
         self.numpy_rng = numpy.random.RandomState(89677)
@@ -80,7 +75,9 @@ class Gather_sda(object):
             hidden_layers_sizes = self.hidden_size,
             corruption_levels = self.corruption_da,
             dA_initiall = self.dA_initiall,
-            error_known = self.error_known)
+            error_known = self.error_known,
+            method=self.method,
+            problem = self.problem)
                  
    
         pretraining_fns = self.sda.pretraining_functions(train_set_x = self.train_set,
@@ -118,7 +115,8 @@ class Gather_sda(object):
             corruption_levels = self.corruption_da,
             dA_initiall = self.dA_initiall,
             error_known = self.error_known,
-            method=self.method)
+            method=self.method,
+            problem = self.problem)
 
         self.gather_out=theano.function(
             [],

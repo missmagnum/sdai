@@ -15,17 +15,19 @@ class Sda(object):
 
 
     def __init__( self, numpy_rng=None, theano_rng=None,n_inputs=None,
-                  hidden_layers_sizes=[500, 500],
+                  hidden_layers_sizes = None,
                   corruption_levels=[0.1, 0.1],
                   dA_initiall=True,
                   error_known=True,
-                  method=None):         
+                  method=None,
+                  problem = None):         
 
         self.n_layers = len(hidden_layers_sizes)
         self.n_inputs=n_inputs
         self.hidden_layers_sizes=hidden_layers_sizes
         self.error_known = error_known
         self.method=method
+        self.problem = problem
         
         assert self.n_layers > 2
 
@@ -77,7 +79,8 @@ class Sda(object):
                               n_hidden=hidden_layers_sizes[i],
                               W=self.encoder_layer.W,
                               bhid=self.encoder_layer.b,
-                              method = self.method)
+                              method = self.method,
+                              problem = self.problem)
             
                 self.dA_layers.append(dA_layer)
             
@@ -113,7 +116,10 @@ class Sda(object):
 
 
             if i==len(decode_hidden_sizes)-1:
-                act_func = None #T.nnet.sigmoid
+                if self.problem == 'regression':
+                    act_func = None 
+                else:
+                    act_func = T.nnet.sigmoid
             else:
                 act_func=T.tanh
             
@@ -141,17 +147,16 @@ class Sda(object):
 
     def finetune_cost(self):     
                                 
-        if self.error_known :
-            
-            ## cost over known data
-            x = self.x * self.mask
-            z = self.decoder_layer.output* self.mask
+      
+        ## cost over known data
+        x = self.x * self.mask
+        z = self.decoder_layer.output* self.mask
 
+        if self.problem == 'regression':
+            print('regression')
+            cost = T.mean(T.sum((x - z )**2 , axis=1))
         else:
-            x = self.x
-            z = self.decoder_layer.output
-        cost = T.mean(T.sum((x - z )**2 , axis=1))
-        #cost = T.mean(T.sum( x* T.log(z) + (1-x)*T.log(1-z) ,axis=1))
+            cost = T.mean(T.sum( x* T.log(z) + (1-x)*T.log(1-z) ,axis=1))
         
         ## add regularization
         regularizationl2=lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
@@ -181,7 +186,7 @@ class Sda(object):
             fn = theano.function(
                 inputs=[
                     index,
-                    theano.In(corruption_level, value=0.2),
+                    theano.In(corruption_level, value=0.1),
                     theano.In(learning_rate, value=0.1)
                 ],
                 outputs=cost,

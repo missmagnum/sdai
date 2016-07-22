@@ -74,7 +74,7 @@ def error(x,z):
 #data_source = 'rna'
 #dataset=loadtxt('rna_data.txt').T
 
-dataset=syn_ph(10,5)
+dataset=syn_ph(1000,200)
 print(dataset.shape)
 
 
@@ -88,11 +88,12 @@ bjorn_error=[]
 mean_error=[]
 sd_error=[]
 missing_percent=np.linspace(0.1,0.9,9)
-missing_percent=[0.1]
+missing_percent=[0.7]
 
 for mis in missing_percent:
     print('missing percentage: ',mis)
-    
+
+   
     available_mask=np.random.binomial(n=1, p = 1-mis, size = dataset.shape)
     rest_mask, test_mask = available_mask[:percent], available_mask[percent:]
     train_mask = rest_mask[:percent_valid]
@@ -100,12 +101,12 @@ for mis in missing_percent:
     
     data= (train_set*train_mask, valid_set *valid_mask ,test_set *test_mask)
     mask= train_mask, valid_mask, test_mask
-    print (train_mask,train_set)
-    
+   
 
     #### SDA
     
-    gather=Gather_sda(dataset, data , available_mask = mask , method = 'nes_mom',dA_initiall = True ,error_known = True )
+    gather=Gather_sda(dataset, data , available_mask = mask , method = None ,
+                      dA_initiall = True ,error_known = True)
     
     gather.finetuning()
     #print(train.shape)
@@ -114,8 +115,8 @@ for mis in missing_percent:
     ###saving result        
 
     
-    bjorn_error.append(sum((1-corruption)*((dataset-gather.gather_out())**2), axis=1).mean())
-    mean_error.append(sum((1-corruption)*((dataset-dataset.mean(axis=0))**2), axis=1).mean())
+    bjorn_error.append(sum((1-available_mask)*((dataset-gather.gather_out())**2), axis=1).mean())
+    mean_error.append(sum((1-available_mask)*((dataset-dataset.mean(axis=0))**2), axis=1).mean())
     
 #print('gather_out',gather.gather_out()[-1],'outout',sda_result[-1])
 #name=data_source+str(datetime.date.today())
