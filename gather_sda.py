@@ -1,6 +1,9 @@
 import numpy
 from pylab import *
 import timeit
+import gzip
+import pickle
+
 
 import theano
 import theano.tensor as T
@@ -14,12 +17,13 @@ class Gather_sda(object):
 
     def __init__(self,
                  dataset,
+                 portion_data,
                  available_mask = None,
                  method = None,
-                 pretraining_epochs = 100,
+                 pretraining_epochs = 10,
                  pretrain_lr = 0.005,
                  training_epochs = 100,
-                 finetune_lr = 0.005,
+                 finetune_lr = 0.0005,
                  batch_size = 100,
                  hidden_size = [100,20,2],
                  corruption_da = [0.1, 0.1, 0.1],
@@ -45,23 +49,21 @@ class Gather_sda(object):
                 matrix = X
                 shared_x = theano.shared(numpy.asarray(matrix, dtype=theano.config.floatX), borrow=True)
             return shared_x
-            
-        #numpy.random.shuffle(dataset)   wont shuffle since need the exact place for available_mask
-        self.dataset = load_data(dataset)
-        percent = int(dataset.shape[0] * 0.8)   ### %80 of dataset for training
-        train, self.test_set = dataset[:percent] ,load_data( dataset[percent:])
-        rest_mask,self.test_mask = available_mask[:percent],load_data(available_mask[percent:])
-        percent_valid = int(train.shape[0] * 0.8)
-        self.train_set, self.valid_set = load_data(train[:percent_valid]) , load_data(train[percent_valid:])
-        self.train_mask = load_data(rest_mask[:percent_valid]) 
-        self.valid_mask = load_data(rest_mask[percent_valid:])
+
+        self.train_set,self.valid_set,self.test_set = [load_data(i) for i in portion_data]
         
-        
+        if error_known:
+            self.train_mask,self.valid_mask,self.test_mask = [load_data(i) for i in available_mask]
+
+        self.dataset=load_data(dataset)
+
+
         if not self.error_known:
             self.train_mask = load_data(numpy.ones_like(rest_mask[:percent_valid]))
             self.test_mask = load_data(numpy.ones_like(dataset[percent:]))
             self.valid_mask = load_data(numpy.ones_like(rest_mask[percent_valid:]))
 
+         
         
         self.n_visible = dataset.shape[1]
         self.n_train_batches = self.train_set.get_value(borrow=True).shape[0] // batch_size        

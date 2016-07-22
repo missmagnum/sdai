@@ -113,7 +113,7 @@ class Sda(object):
 
 
             if i==len(decode_hidden_sizes)-1:
-                act_func = None
+                act_func = None #T.nnet.sigmoid
             else:
                 act_func=T.tanh
             
@@ -141,12 +141,17 @@ class Sda(object):
 
     def finetune_cost(self):     
                                 
-    
-        ## cost over known data
-        x = self.x * self.mask
-        z = self.decoder_layer.output* self.mask 
-        cost = T.mean(T.sum((x - z )**2 , axis=1))
+        if self.error_known :
             
+            ## cost over known data
+            x = self.x * self.mask
+            z = self.decoder_layer.output* self.mask
+
+        else:
+            x = self.x
+            z = self.decoder_layer.output
+        cost = T.mean(T.sum((x - z )**2 , axis=1))
+        #cost = T.mean(T.sum( x* T.log(z) + (1-x)*T.log(1-z) ,axis=1))
         
         ## add regularization
         regularizationl2=lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)

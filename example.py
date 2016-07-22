@@ -71,24 +71,41 @@ def error(x,z):
 
 
     
-data_source = 'syn_ph'
-dataset=syn_ph(1800,200)
-missing_percent=np.linspace(0.1,0.9,9)
+#data_source = 'rna'
+#dataset=loadtxt('rna_data.txt').T
+
+dataset=syn_ph(10,5)
+print(dataset.shape)
+
+
+percent = int(dataset.shape[0] * 0.8)   ### %80 of dataset for training
+train, test_set = dataset[:percent] ,dataset[percent:]
+percent_valid = int(train.shape[0] * 0.8)
+train_set, valid_set = train[:percent_valid] , train[percent_valid:]
 
 
 bjorn_error=[]
 mean_error=[]
 sd_error=[]
+missing_percent=np.linspace(0.1,0.9,9)
 missing_percent=[0.1]
+
 for mis in missing_percent:
     print('missing percentage: ',mis)
-    #for i in range(10):
-    corruption=np.random.binomial(n=1, p = 1-mis, size = dataset.shape)
-
+    
+    available_mask=np.random.binomial(n=1, p = 1-mis, size = dataset.shape)
+    rest_mask, test_mask = available_mask[:percent], available_mask[percent:]
+    train_mask = rest_mask[:percent_valid]
+    valid_mask = rest_mask[percent_valid:]
+    
+    data= (train_set*train_mask, valid_set *valid_mask ,test_set *test_mask)
+    mask= train_mask, valid_mask, test_mask
+    print (train_mask,train_set)
+    
 
     #### SDA
-    data_with_missing = dataset * corruption
-    gather=Gather_sda(data_with_missing, available_mask = corruption , method = 'nes_mom',dA_initiall = False ,error_known = True )
+    
+    gather=Gather_sda(dataset, data , available_mask = mask , method = 'nes_mom',dA_initiall = True ,error_known = True )
     
     gather.finetuning()
     #print(train.shape)

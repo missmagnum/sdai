@@ -82,7 +82,7 @@ class dA(object):
         z = self.get_reconstructed_input(y)        
         
         L = T.sum((self.x-z)**2 , axis=1)
-        
+        #L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
         ## add l2 regularization
         lambda1 = 1e-4
         cost = T.mean(L)+ lambda1 * lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
