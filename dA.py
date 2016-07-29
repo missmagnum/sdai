@@ -80,15 +80,14 @@ class dA(object):
 
     def get_cost_updates(self, corruption_level, learning_rate):
         tilde_x = self.get_corrupted_input(self.x, corruption_level)
-        y = self.get_hidden_values(tilde_x) 
+        y = self.get_hidden_values(tilde_x)
         z = self.get_reconstructed_input(y)        
-        if self.problem == 'regression':
-            L = T.sum((self.x-z)**2 , axis=1)
-        else:
-            L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
+        L = T.sum((self.x-z)**2 , axis=1)
+        
         ## add l2 regularization
         lambda1 = 1e-4
-        cost = T.mean(L)+ lambda1 * lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
+        regularizationl2=lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)
+        cost = T.mean(L)+ lambda1 * regularizationl2
         
         updates = Update(method = self.method,
                          cost = cost,

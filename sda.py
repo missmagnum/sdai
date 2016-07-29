@@ -79,9 +79,8 @@ class Sda(object):
                               n_hidden=hidden_layers_sizes[i],
                               W=self.encoder_layer.W,
                               bhid=self.encoder_layer.b,
-                              method = self.method,
-                              problem = self.problem)
-            
+                              method = self.method)
+                
                 self.dA_layers.append(dA_layer)
             
             self.encoder_layers.append(self.encoder_layer)
@@ -156,7 +155,7 @@ class Sda(object):
             print('regression')
             cost = T.mean(T.sum((x - z )**2 , axis=1))
         else:
-            cost = T.mean(T.sum( x* T.log(z) + (1-x)*T.log(1-z) ,axis=1))
+            cost = T.mean(T.sum((x - z )**2 , axis=1))#T.mean(T.sum( x* T.log(z) + (1-x)*T.log(1-z) ,axis=1))
         
         ## add regularization
         regularizationl2=lasagne.regularization.apply_penalty(self.params, lasagne.regularization.l2)

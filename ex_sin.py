@@ -3,7 +3,7 @@ from pylab import *
 import datetime
 
 from gather_sda import Gather_sda
-
+from knn import knn
 
 
 def syn_ph(nsamp,nfeat,doplot=False):
@@ -51,8 +51,9 @@ train_set, valid_set = train[:percent_valid] , train[percent_valid:]
 
 b_error=[]
 mean_error=[]
+knn_error=[]
 missing_percent=np.linspace(0.1,0.9,9)
-#missing_percent=[0.1]
+missing_percent=[0.1]
 
 for mis in missing_percent:
     print('missing percentage: ',mis)
@@ -69,19 +70,31 @@ for mis in missing_percent:
 
     #### SDA
     
-    gather=Gather_sda(dataset, data , available_mask = mask , method = None ,
-                      dA_initiall = True ,error_known = True)
+    gather=Gather_sda(dataset,data ,problem = 'class', available_mask = mask,
+                      method = 'nes_mom',
+                      pretraining_epochs = 100,
+                      pretrain_lr = 0.0005,
+                      training_epochs = 100,
+                      finetune_lr = 0.0005,
+                      batch_size = 100,
+                      hidden_size = [200,20,2],
+                      dA_initiall = True ,
+                      error_known = True )
     
     gather.finetuning()
       
-
+    #knn_result = knn(dataset,available_mask)
     
     b_error.append(sum((1-available_mask)*((dataset-gather.gather_out())**2), axis=1).mean())
     mean_error.append(sum((1-available_mask)*((dataset-dataset.mean(axis=0))**2), axis=1).mean())
-    plot(mis,b_error[-1],'r*')
-    plot(mis,mean_error[-1],'b*')
-
+    #knn_error.append(sum((1-available_mask)*((dataset-knn_result)**2), axis=1).mean())
+    plot(mis,b_error[-1],'ro')
+    plot(mis,mean_error[-1],'bo')
+    #plot(mis,knn_error[-1],'g*')
+    
+#plot(missing_percent,b_error,'r',missing_percent,knn_error,'g')
 print(b_error)
+#print(knn_error)
 print(mean_error)
-show()
+#show()
     

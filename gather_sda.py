@@ -1,10 +1,4 @@
 import numpy
-from pylab import *
-import timeit
-import gzip
-import pickle
-
-
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
@@ -23,9 +17,9 @@ class Gather_sda(object):
                  method = None,
                  pretraining_epochs = 100,
                  pretrain_lr = 0.005,
-                 training_epochs = 100,
+                 training_epochs = 400,
                  finetune_lr = 0.0005,
-                 batch_size = 100,
+                 batch_size = 50,
                  hidden_size = [100,20,2],
                  corruption_da = [0.1, 0.1, 0.1],
                  dA_initiall = True,
@@ -57,7 +51,7 @@ class Gather_sda(object):
 
         else:
             self.train_mask,self.valid_mask,self.test_mask = [load_data(numpy.ones_like(i)) for i in available_mask]
-
+        
        
         self.dataset=load_data(dataset)
         self.n_visible = dataset.shape[1]
@@ -84,7 +78,6 @@ class Gather_sda(object):
                                                          batch_size = self.batch_size)
 
         print('... pre-training the model')
-        start_time = timeit.default_timer()
         corruption_levels = self.corruption_da
 
         for i in range(self.sda.n_layers):
@@ -98,9 +91,7 @@ class Gather_sda(object):
                                                 lr = self.pretrain_lr))
                 print('Pre-training layer %i, epoch %d, cost %f' % (i, epoch, numpy.mean(c)))
 
-        end_time = timeit.default_timer()
-
-        
+   
     
     def finetuning(self):
 
@@ -155,8 +146,7 @@ class Gather_sda(object):
 
         best_validation_loss = numpy.inf
         test_score = 0.
-        start_time = timeit.default_timer()
-
+     
         done_looping = False
         epoch = 0
         ### hold out cross validation
@@ -203,7 +193,7 @@ class Gather_sda(object):
                     done_looping = True
                     break
       
-        end_time = timeit.default_timer()
+        
         print(
             (
                 'Optimization complete with best validation score of %f , '

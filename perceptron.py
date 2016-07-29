@@ -2,7 +2,7 @@ import numpy
 
 import theano
 import theano.tensor as T
-from autoencoder import DenoisingAutoencoder
+
 from theano.tensor.shared_randomstreams import RandomStreams
 
 class perceptron(object):
@@ -18,7 +18,7 @@ class perceptron(object):
 
 
         if W is None:
-            print('perrrrr')
+            
             W_values = numpy.asarray(
                 rng.uniform(
                     low=-numpy.sqrt(6. / (n_in + n_out)),
@@ -38,10 +38,10 @@ class perceptron(object):
             b = theano.shared(value=b_values, name='b', borrow=True)
 
    
-            
+       
         self.W = W
         self.b = b
-
+       
 
         if first_layer_corrup:
             corruption_level = 0.1        
@@ -61,5 +61,4 @@ class perceptron(object):
         
         self.params = [self.W, self.b]
 
-
-   
+       
