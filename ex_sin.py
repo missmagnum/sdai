@@ -80,10 +80,11 @@ for mis in missing_percent:
     plot(mis,knn_error[-1],'g*')
     
 plot(missing_percent,mean_error,'b',label='mean_row')
-plot(missing_percent,b_error,'r',label='sda')
 plot(missing_percent,knn_error,'g',label='knn' )
+plot(missing_percent,b_error,'r',label='sda')
 xlabel('corruption percentage')
 ylabel('MSE')
+title('dataset: shifted sin + noise')
 legend(loc=4,prop={'size':9})
 print(b_error)
 print(knn_error)
