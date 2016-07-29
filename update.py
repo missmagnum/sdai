@@ -40,7 +40,7 @@ def Update(method=None , cost= None , params= None, learning_rate= None):
                                      epsilon=1e-08)
 
     elif method== 'rmsprop':
-            
+        """
         learning_rate=learning_rate
         rho=0.9
         epsilon=1e-6
@@ -58,7 +58,7 @@ def Update(method=None , cost= None , params= None, learning_rate= None):
 
         """
         updates=lasagne.updates.rmsprop(cost, params, learning_rate=learning_rate, rho=0.9, epsilon=1e-06)
-        """
+        
             
     else:
         raise ValueError(" check the given UPDATES ")

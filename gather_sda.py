@@ -17,7 +17,7 @@ class Gather_sda(object):
                  method = None,
                  pretraining_epochs = 100,
                  pretrain_lr = 0.005,
-                 training_epochs = 400,
+                 training_epochs = 100,
                  finetune_lr = 0.0005,
                  batch_size = 50,
                  hidden_size = [100,20,2],
