@@ -79,8 +79,8 @@ for mis in missing_percent:
     plot(mis,mean_error[-1],'bo')
     plot(mis,knn_error[-1],'g*')
     
-plot(missing_percent,mean_error,'b',label='sda')
-plot(missing_percent,b_error,'r',label='mean_row')
+plot(missing_percent,mean_error,'b',label='mean_row')
+plot(missing_percent,b_error,'r',label='sda')
 plot(missing_percent,knn_error,'g',label='knn' )
 xlabel('corruption percentage')
 ylabel('MSE')
