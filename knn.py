@@ -36,7 +36,7 @@ def knn(data, mask, k = 3, lamb=0.9 ,norm=2 ):
             data[mis,j] = np.sum( weight * data[sort_d[i],j] )
     
 
-    print(time.time()-t0)
+    #print(time.time()-t0)
     return data
             
     

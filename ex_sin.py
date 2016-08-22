@@ -38,7 +38,7 @@ train_set, valid_set = train[:percent_valid] , train[percent_valid:]
 b_error=[]
 mean_error=[]
 knn_error=[]
-missing_percent=np.linspace(0.1,0.9,9)
+missing_percent=np.linspace(0.,0.9,10)
 #missing_percent=[0.1]
 
 for mis in missing_percent:
