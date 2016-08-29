@@ -10,8 +10,8 @@ from sda import Sda
 class Gather_sda(object):
 
     def __init__(self,
-                 dataset,
-                 portion_data,
+                 dataset=None,
+                 portion_data=None,
                  problem = 'regression' ,
                  available_mask = None,
                  method = None,
